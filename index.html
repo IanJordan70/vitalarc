@@ -675,8 +675,12 @@ select.f-input { cursor: pointer; }
             <span id="set-manual-count" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">—</span>
           </div>
           <div class="setting-row">
-            <div class="setting-label">Clear all imported data<small>Removes health data from this browser. Records are kept.</small></div>
+            <div class="setting-label">Clear imported health data<small>Removes Apple Health / CSV imports. Manual records kept.</small></div>
             <button onclick="clearImportedData()" style="padding:7px 16px;background:transparent;border:1px solid var(--coral);color:var(--coral);border-radius:7px;font-size:12px;font-family:'Poppins',sans-serif;cursor:pointer;transition:all .12s">Clear data</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Reset everything<small>Wipes all data &amp; settings. Useful when a new person wants to start fresh on this device.</small></div>
+            <button onclick="resetEverything()" style="padding:7px 16px;background:var(--coral);border:1px solid var(--coral);color:#fff;border-radius:7px;font-size:12px;font-weight:500;font-family:'Poppins',sans-serif;cursor:pointer;transition:all .12s">Reset all</button>
           </div>
         </div>
         <div class="settings-section" style="background:var(--surface2);">
@@ -700,7 +704,10 @@ select.f-input { cursor: pointer; }
   <div class="import-modal">
     <div class="import-modal-header">
       <h3>📦 Import health data</h3>
-      <button class="close-x" onclick="closeImporter()">✕</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="resetEverything()" title="Wipe all data on this device and start over" style="padding:6px 12px;background:transparent;border:1px solid var(--coral);color:var(--coral);border-radius:6px;font-size:12px;font-family:'Poppins',sans-serif;cursor:pointer">↺ Start fresh</button>
+        <button class="close-x" onclick="closeImporter()">✕</button>
+      </div>
     </div>
     <iframe id="import-frame" src="about:blank"></iframe>
   </div>
@@ -2776,6 +2783,28 @@ function clearImportedData() {
         if (rc) rc.textContent = '0 records';
       };
     }
+  };
+}
+
+function resetEverything(silent) {
+  if (!silent && !confirm('⚠ This will wipe EVERYTHING from this browser:\n\n• All imported health data\n• All manual records (medications, symptoms, labs, appointments)\n• All settings & preferences\n\nThis cannot be undone. Continue?')) return;
+  // Clear localStorage
+  try { localStorage.removeItem('vitalarc-settings'); } catch(_){}
+  // Delete the entire IndexedDB database
+  var delReq = indexedDB.deleteDatabase('vitalarc');
+  delReq.onsuccess = function() {
+    HEALTH_DATA = [];
+    DATA_META = null;
+    if (!silent) {
+      showBanner('ok', '<span>✓ Everything cleared. Reloading…</span>');
+      setTimeout(function(){ location.reload(); }, 800);
+    }
+  };
+  delReq.onerror = function() {
+    if (!silent) showBanner('err', '<span>Could not clear database — try closing other VitalArc tabs and retry.</span>');
+  };
+  delReq.onblocked = function() {
+    if (!silent) showBanner('err', '<span>Close any other VitalArc tabs, then try again.</span>');
   };
 }
 
